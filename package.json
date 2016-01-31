@@ -1,0 +1,60 @@
+{
+  "name": "koa-oauth2-server",
+  "version": "1.0.0",
+  "description": "A well-tested, compliant implementation of an OAuth 2 server for Koa",
+  "main": "index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "mocha src/**/*.spec.js && npm run lint",
+    "lint": "eslint src",
+    "lint-fix": "eslint src --ignore src/test --fix",
+    "coverage": "babel-node ./node_modules/.bin/babel-istanbul cover _mocha src/**/*.spec.js",
+    "prepublish": "rm -rf dist && babel src --ignore *.spec.js --ignore src/test/*.js -d dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/forabi/koa-oauth2-server"
+  },
+  "keywords": [
+    "oauth",
+    "oauth2",
+    "server",
+    "express",
+    "api"
+  ],
+  "author": "Muhammad Fawwaz Orabi <mfawwaz93@gmail.com> (http://forabi.github.io)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/forabi/koa-oauth2-server/issues"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.4.5",
+    "babel-core": "^6.4.5",
+    "babel-eslint": "^5.0.0-beta6",
+    "babel-istanbul": "^0.6.0",
+    "babel-plugin-transform-class-properties": "^6.4.0",
+    "babel-plugin-transform-object-rest-spread": "^6.3.13",
+    "babel-plugin-transform-runtime": "^6.4.3",
+    "babel-preset-es2015-node5": "^1.1.2",
+    "babel-preset-stage-2": "^6.3.13",
+    "babel-preset-stage-3": "^6.3.13",
+    "babel-register": "^6.4.3",
+    "coveralls": "^2.11.6",
+    "eslint": "^1.10.3",
+    "eslint-config-airbnb": "^4.0.0",
+    "expect": "^1.13.4",
+    "istanbul": "^0.4.2",
+    "lodash.uniqueid": "^3.1.1",
+    "mocha": "^2.4.5",
+    "source-map-support": "^0.4.0"
+  },
+  "dependencies": {
+    "koa-router": "^7.0.1"
+  },
+  "peerDependencies": {
+    "koa": "^2.0.0-alpha.3",
+    "koa-bodyparser": "^3.0.0"
+  }
+}
