@@ -1,7 +1,6 @@
 import expect, { createSpy } from 'expect';
 import { parse as parseUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
-import { MODEL } from '../constants';
 import { handleAuthorizationRequest, handleTokenRequest } from './authorization_code';
 import uniqueId from 'lodash.uniqueid';
 
@@ -344,7 +343,7 @@ describe('Authorization Code Grant Type', () => {
         },
       };
       const fns = {
-        
+
       };
       const next = createSpy();
       await handleTokenRequest(fns)(ctx, next);

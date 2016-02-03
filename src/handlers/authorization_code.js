@@ -2,7 +2,10 @@ import { InvalidInputError,
   MissingInputError, toOAuthError } from '../errors';
 import { stringify } from 'querystring';
 
-export function handleAuthorizationRequest({ isClientValid, createAuthorizationCode, isRedirectUriValid, getRedirectUri }) {
+export function handleAuthorizationRequest({
+  isClientValid, createAuthorizationCode,
+  isRedirectUriValid, getRedirectUri,
+}) {
   return async (ctx, next) => {
     const {
       response_type, client_id, scope, state,
@@ -34,10 +37,13 @@ export function handleAuthorizationRequest({ isClientValid, createAuthorizationC
     } finally {
       ctx.redirect(`${redirect_uri}?${stringify(query)}`);
     }
-  }
+  };
 }
 
-export function handleTokenRequest({ isClientSecretValid, createAccessToken, isAuthorizationCodeValid }) {
+export function handleTokenRequest({
+  isClientSecretValid, createAccessToken,
+  isAuthorizationCodeValid,
+}) {
   return async (ctx, next) => {
     const {
       grant_type, client_id, client_secret,
@@ -63,5 +69,5 @@ export function handleTokenRequest({ isClientSecretValid, createAccessToken, isA
       createRefreshToken: true,
     });
     ctx.body = token;
-  }
+  };
 }
