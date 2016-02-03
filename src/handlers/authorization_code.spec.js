@@ -15,18 +15,19 @@ describe('Authorization Code Grant Type', () => {
           },
         },
       };
+      const fns = { };
       const next = createSpy();
-      await handleAuthorizationRequest(ctx, next);
+      await handleAuthorizationRequest(fns)(ctx, next);
       expect(next).toHaveBeenCalled();
     });
 
     it('requires "client_id", otherwise rejects', async () => {
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
+      const fns = {
+        isClientValid() {
+          return true;
         },
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -37,23 +38,23 @@ describe('Authorization Code Grant Type', () => {
       const errorHandler = createSpy().andCall(e => {
         expect(e.message).toMatch(/invalid input/i);
       });
-      await handleAuthorizationRequest(ctx).catch(errorHandler);
+      await handleAuthorizationRequest(fns)(ctx).catch(errorHandler);
       expect(errorHandler).toHaveBeenCalled();
     });
 
     it('should call client validation function', async () => {
       const isClientValid = createSpy();
       const client_id = uniqueId('client_');
-      const ctx = {
-        [MODEL]: {
-          isClientValid,
-          getRedirectUri() {
-            return uniqueId('http://forabi.net/post/');
-          },
-          createAuthorizationCode() {
-            return uniqueId('auth_code_');
-          },
+      const fns = {
+        isClientValid,
+        getRedirectUri() {
+          return uniqueId('http://forabi.net/post/');
         },
+        createAuthorizationCode() {
+          return uniqueId('auth_code_');
+        },
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -64,7 +65,7 @@ describe('Authorization Code Grant Type', () => {
           return;
         },
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(isClientValid).toHaveBeenCalledWith({ client_id });
     });
 
@@ -73,14 +74,14 @@ describe('Authorization Code Grant Type', () => {
       const createAuthorizationCode = createSpy();
       const redirect = createSpy();
       const client_id = uniqueId('client_');
-      const ctx = {
-        [MODEL]: {
-          isClientValid,
-          getRedirectUri() {
-            return uniqueId('http://forabi.net/post/');
-          },
-          createAuthorizationCode,
+      const fns = {
+        isClientValid,
+        getRedirectUri() {
+          return uniqueId('http://forabi.net/post/');
         },
+        createAuthorizationCode,
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -95,23 +96,23 @@ describe('Authorization Code Grant Type', () => {
         expect(createAuthorizationCode).toNotHaveBeenCalled();
         expect(redirect).toNotHaveBeenCalled();
       });
-      await handleAuthorizationRequest(ctx).catch(errorHandler);
+      await handleAuthorizationRequest(fns)(ctx).catch(errorHandler);
       expect(errorHandler).toHaveBeenCalled();
     });
 
     it('should call authorization code generation function', async () => {
       const createAuthorizationCode = createSpy();
       const client_id = uniqueId('client_');
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          getRedirectUri() {
-            return uniqueId('http://forabi.net/post/');
-          },
-          createAuthorizationCode,
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        getRedirectUri() {
+          return uniqueId('http://forabi.net/post/');
+        },
+        createAuthorizationCode,
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -122,7 +123,7 @@ describe('Authorization Code Grant Type', () => {
           return;
         },
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(createAuthorizationCode).toHaveBeenCalled();
     });
 
@@ -134,17 +135,17 @@ describe('Authorization Code Grant Type', () => {
       const redirect = createSpy().andCall(url => {
         expect(url.startsWith(redirect_uri));
       });
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          createAuthorizationCode() {
-            return uniqueId('auth_code_');
-          },
-          getRedirectUri,
-          isRedirectUriValid,
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        createAuthorizationCode() {
+          return uniqueId('auth_code_');
+        },
+        getRedirectUri,
+        isRedirectUriValid,
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -154,7 +155,7 @@ describe('Authorization Code Grant Type', () => {
         },
         redirect,
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(getRedirectUri).toNotHaveBeenCalled();
       expect(isRedirectUriValid).toHaveBeenCalledWith({ client_id, redirect_uri });
       expect(redirect).toHaveBeenCalled();
@@ -168,17 +169,17 @@ describe('Authorization Code Grant Type', () => {
       const redirect = createSpy().andCall(url => {
         expect(url.startsWith(redirect_uri));
       });
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          createAuthorizationCode() {
-            return uniqueId('auth_code_');
-          },
-          getRedirectUri,
-          isRedirectUriValid,
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        createAuthorizationCode() {
+          return uniqueId('auth_code_');
+        },
+        getRedirectUri,
+        isRedirectUriValid,
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -194,7 +195,7 @@ describe('Authorization Code Grant Type', () => {
         expect(isRedirectUriValid).toHaveBeenCalledWith({ client_id, redirect_uri });
         expect(redirect).toNotHaveBeenCalled();
       });
-      await handleAuthorizationRequest(ctx).catch(errorHandler);
+      await handleAuthorizationRequest(fns)(ctx).catch(errorHandler);
       expect(errorHandler).toHaveBeenCalled();
     });
 
@@ -203,16 +204,16 @@ describe('Authorization Code Grant Type', () => {
       const getRedirectUri = createSpy().andCall(() => redirect_uri);
       const redirect = createSpy();
       const client_id = uniqueId('client_');
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          createAuthorizationCode() {
-            return uniqueId('auth_code_');
-          },
-          getRedirectUri,
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        createAuthorizationCode() {
+          return uniqueId('auth_code_');
+        },
+        getRedirectUri,
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -221,7 +222,7 @@ describe('Authorization Code Grant Type', () => {
         },
         redirect,
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(getRedirectUri).toHaveBeenCalledWith({ client_id });
       expect(redirect).toHaveBeenCalled();
     });
@@ -237,18 +238,18 @@ describe('Authorization Code Grant Type', () => {
         expect(parsedQuery.state).toBe(undefined);
       });
       const client_id = uniqueId('client_');
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          createAuthorizationCode() {
-            return auth_code;
-          },
-          isRedirectUriValid() {
-            return true;
-          },
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        createAuthorizationCode() {
+          return auth_code;
+        },
+        isRedirectUriValid() {
+          return true;
+        },
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -257,7 +258,7 @@ describe('Authorization Code Grant Type', () => {
         },
         redirect,
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(redirect).toHaveBeenCalled();
     });
 
@@ -271,18 +272,18 @@ describe('Authorization Code Grant Type', () => {
         expect(parsedQuery.state).toBe(state);
       });
       const client_id = uniqueId('client_');
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          createAuthorizationCode() {
-            return uniqueId('auth_code_');
-          },
-          isRedirectUriValid() {
-            return true;
-          },
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        createAuthorizationCode() {
+          return uniqueId('auth_code_');
+        },
+        isRedirectUriValid() {
+          return true;
+        },
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -291,7 +292,7 @@ describe('Authorization Code Grant Type', () => {
         },
         redirect,
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(redirect).toHaveBeenCalled();
     });
 
@@ -310,16 +311,16 @@ describe('Authorization Code Grant Type', () => {
         expect(parsedQuery.error_description).toBe(err_msg);
         expect(parsedQuery.state).toBe(state);
       });
-      const ctx = {
-        [MODEL]: {
-          isClientValid() {
-            return true;
-          },
-          createAuthorizationCode,
-          isRedirectUriValid() {
-            return true;
-          },
+      const fns = {
+        isClientValid() {
+          return true;
         },
+        createAuthorizationCode,
+        isRedirectUriValid() {
+          return true;
+        },
+      };
+      const ctx = {
         request: {
           body: {
             response_type: 'code',
@@ -328,7 +329,7 @@ describe('Authorization Code Grant Type', () => {
         },
         redirect,
       };
-      await handleAuthorizationRequest(ctx);
+      await handleAuthorizationRequest(fns)(ctx);
       expect(createAuthorizationCode).toHaveBeenCalled();
       expect(redirect).toHaveBeenCalled();
     });
@@ -342,8 +343,11 @@ describe('Authorization Code Grant Type', () => {
           },
         },
       };
+      const fns = {
+        
+      };
       const next = createSpy();
-      await handleTokenRequest(ctx, next);
+      await handleTokenRequest(fns)(ctx, next);
       expect(next).toHaveBeenCalled();
     }
     );
