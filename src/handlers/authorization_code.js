@@ -4,7 +4,7 @@ import { stringify } from 'querystring';
 
 export function handleAuthorizationRequest({
   isClientValid, createAuthorizationCode,
-  isRedirectUriValid, getRedirectUri,
+  isRedirectUriValid, getFallbackRedirectUri,
 }) {
   return async (ctx, next) => {
     const {
@@ -24,7 +24,7 @@ export function handleAuthorizationRequest({
         throw new InvalidInputError('redirect_uri');
       }
     } else {
-      fallback_redirect_uri = await getRedirectUri({ client_id });
+      fallback_redirect_uri = await getFallbackRedirectUri({ client_id });
     }
     let query;
     try {
@@ -43,13 +43,13 @@ export function handleAuthorizationRequest({
 
 export function handleTokenRequest({
   isClientSecretValid, createAccessToken,
-  isAuthorizationCodeValid, isRedirectUriRequired,
+  findAuthorizationCode, isRedirectUriRequired,
   isRedirectUriValid,
 }) {
   return async (ctx, next) => {
     const {
       grant_type, client_id, client_secret,
-      ttl, scope, code, redirect_uri,
+      code, redirect_uri,
     } = ctx.request.body;
     if (grant_type !== 'authorization_code') {
       return next();
@@ -66,7 +66,14 @@ export function handleTokenRequest({
     if (await isClientSecretValid({ client_id, client_secret }) === false) {
       throw new InvalidInputError('client_secret');
     }
-    if (await isAuthorizationCodeValid({ client_id, code }) === false) {
+    let scope = null;
+    let ttl = null;
+    try {
+      const authCode = await findAuthorizationCode({ client_id, code });
+      if (!authCode) throw new Error();
+      scope = authCode.scope;
+      ttl = authCode.ttl;
+    } catch (e) {
       throw new InvalidInputError('code');
     }
     if (await isRedirectUriRequired({ client_id, code })) {
