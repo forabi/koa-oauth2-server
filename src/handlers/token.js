@@ -18,7 +18,7 @@ export function handleTokenRequest({ createAccessToken }) {
       });
       query = token;
     } catch (e) {
-      query = toOAuthError(e, { state });
+      query = toOAuthError(e, state);
     } finally {
       ctx.redirect(`${redirect_uri}?${stringify(query)}`);
     }
