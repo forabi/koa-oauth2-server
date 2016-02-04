@@ -54,9 +54,9 @@ export class InvalidCredentialsError extends InvalidInputError {
   message = 'Invalid values for "password" or "username"';
 }
 
-export function toOAuthError(error, state) {
+export function toOAuthError(error) {
   if (error.type === Object(OAUTH2_ERROR)) {
-    return error.toJSON();
+    return error;
   }
-  return new GenericError(error.message).toJSON({ state });
+  return new GenericError(error.message);
 }

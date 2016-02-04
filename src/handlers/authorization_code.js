@@ -38,7 +38,7 @@ export function handleAuthorizationRequest({
       query = { code };
       if (state) query.state = state;
     } catch (e) {
-      query = toOAuthError(e, state);
+      query = toOAuthError(e).toJSON({ state });
     } finally {
       ctx.redirect(`${redirect_uri || fallback_redirect_uri}?${stringify(query)}`);
     }
