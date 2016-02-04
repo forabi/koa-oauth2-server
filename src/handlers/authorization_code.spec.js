@@ -99,7 +99,7 @@ describe('Authorization Code Grant Type', () => {
 
     it('should not redirect if client is invalid', async function () {
       const { ctx, next, fns } = this;
-      fns.isClientValid = createSpy().andCall(() => false);
+      fns.isClientValid = createSpy().andReturn(false);
       const { client_id } = ctx.request.body;
       const errorHandler = createSpy().andCall(error => {
         expect(error.message).toMatch(/invalid.+client/i);
@@ -113,7 +113,7 @@ describe('Authorization Code Grant Type', () => {
 
     it('should not redirect if redirect URI is invalid', async function() {
       const { ctx, next, fns } = this;
-      fns.isRedirectUriValid = createSpy().andCall(() => false);
+      fns.isRedirectUriValid = createSpy().andReturn(false);
       const errorHandler = createSpy().andCall(error => {
         expect(error.message).toMatch(/invalid input/i);
       });
@@ -164,22 +164,24 @@ describe('Authorization Code Grant Type', () => {
   });
 
   describe('Token Request hanlder', () => {
-    beforeEach(function setUpTests() {
+    beforeEach(function setUpTest() {
+      const code = uniqueId('code_');
+      const scope = uniqueId('scope_');
       this.ctx = {
         request: {
           body: {
             grant_type: 'authorization_code',
             client_id: uniqueId('client_'),
             client_secret: uniqueId('client_secret_'),
-            code: uniqueId('code_'),
-            scope: uniqueId('scope_'),
+            code,
+            scope,
             state: uniqueId('state_'),
             redirect_uri: uniqueId('http://forabi.net/post/'),
           },
         },
       };
       this.fns = {
-        findAthorizationCode: createSpy(),
+        findAuthorizationCode: createSpy().andReturn({ code, scope }),
         isClientSecretValid: createSpy(),
         createAccessToken: createSpy(),
         isRedirectUriRequired: createSpy(),
@@ -193,22 +195,6 @@ describe('Authorization Code Grant Type', () => {
       delete ctx.request.body.grant_type;
       await handleTokenRequest(fns)(ctx, next);
       expect(next).toHaveBeenCalled();
-      for (const fn of Object.keys(fns)) {
-        expect(fns[fn]).toNotHaveBeenCalled();
-      }
-    });
-
-    it('requires "client_id", otherwise rejects', async function() {
-      const { fns, ctx, next } = this;
-      delete ctx.request.body.client_id;
-      const errorHandler = createSpy().andCall(e => {
-        expect(e.message)
-        .toMatch(/client_id/)
-        .toMatch(/missing|invalid input/i);
-      });
-      await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
-      expect(errorHandler).toHaveBeenCalled();
-      expect(next).toNotHaveBeenCalled();
       for (const fn of Object.keys(fns)) {
         expect(fns[fn]).toNotHaveBeenCalled();
       }
@@ -231,7 +217,7 @@ describe('Authorization Code Grant Type', () => {
       expect(fns.isRedirectUriValid).toNotHaveBeenCalled();
     });
 
-    it('shoukd call redirect URI validation function if required', async function() {
+    it('should call redirect URI validation function if required', async function() {
       const { fns, ctx, next } = this;
       fns.isRedirectUriRequired = createSpy().andReturn(true);
       fns.isRedirectUriValid = createSpy().andReturn(false);
@@ -247,27 +233,87 @@ describe('Authorization Code Grant Type', () => {
       expect(fns.isRedirectUriValid).toHaveBeenCalled();
     });
 
-    it('requires "client_secret", otherwise rejects', async function () {
+    describe('Required Parameters', () => {
+      function testRequiredParam(param) {
+        return async function() {
+          const { fns, ctx, next } = this;
+          delete ctx.request.body[param];
+          const errorHandler = createSpy().andCall(e => {
+            expect(e.message)
+            .toMatch(new RegExp(`${param}`))
+            .toMatch(/missing|invalid input/i);
+          });
+          await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
+          expect(errorHandler).toHaveBeenCalled();
+          expect(next).toNotHaveBeenCalled();
+          for (const fn of Object.keys(fns)) {
+            expect(fns[fn]).toNotHaveBeenCalled();
+          }
+        };
+      }
+      for (const param of ['client_id', 'client_secret', 'code']) {
+        it(`requires "${param}", otherwise rejects`, testRequiredParam(param));
+      }
+    });
+
+    it('should call client credentials validation function', async function() {
       const { fns, ctx, next } = this;
-      delete ctx.request.body.client_secret;
+      const { client_id, client_secret } = ctx.request.body;
+      await handleTokenRequest(fns)(ctx, next);
+      expect(next).toNotHaveBeenCalled();
+      expect(fns.isClientSecretValid).toHaveBeenCalledWith({ client_id, client_secret });
+    });
+    it('should reject on invalid client secret', async function() {
+      const { fns, ctx, next } = this;
+      fns.isClientSecretValid = createSpy().andReturn(false);
       const errorHandler = createSpy().andCall(e => {
         expect(e.message)
-        .toMatch(/client_secret/)
-        .toMatch(/missing|invalid input/i);
+          .toMatch(/client_secret/)
+          .toMatch(/missing|invalid input/i);
       });
       await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
       expect(errorHandler).toHaveBeenCalled();
       expect(next).toNotHaveBeenCalled();
-      for (const fn of Object.keys(fns)) {
-        expect(fns[fn]).toNotHaveBeenCalled();
-      }
     });
-    it('requires "code", otherwise rejects');
-    it('should call client credentials validation function');
-    it('should call code validation function only after client is validated');
-    it('should reject on invalid client secret');
-    it('should reject on invalid authorization code');
-    it('should call access token generation function if parameters are valid');
-    it('should not redirect, instead sets token as response body');
+    it('should reject on invalid authorization code', async function() {
+      const { fns, ctx, next } = this;
+      fns.findAuthorizationCode = createSpy().andReturn(null);
+      const errorHandler = createSpy().andCall(e => {
+        expect(e.message)
+          .toMatch(/code/)
+          .toMatch(/missing|invalid input/i);
+      });
+      await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
+      expect(errorHandler).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+    });
+    describe('On valid request', () => {
+      beforeEach(async function setUpTest() {
+        const { fns, ctx, next } = this;
+        await handleTokenRequest(fns)(ctx, next);
+        expect(next).toNotHaveBeenCalled();
+      });
+      it('should call code validation function only after client ' +
+      'secret is validated', async function() {
+        const { fns, ctx } = this;
+        const { client_id, client_secret, code } = ctx.request.body;
+        expect(fns.isClientSecretValid).toHaveBeenCalledWith({ client_id, client_secret });
+        expect(fns.findAuthorizationCode).toHaveBeenCalledWith({ client_id, code });
+      });
+      it('should call access token generation function if parameters are valid', async function() {
+        expect(this.fns.createAccessToken).toHaveBeenCalled();
+      });
+    });
+    it('should not redirect, instead sets token as response body', async function() {
+      const { fns, ctx, next } = this;
+      const token = { token: uniqueId('token_') };
+      fns.createAccessToken = createSpy().andReturn(token);
+      ctx.redirect = createSpy();
+      await handleTokenRequest(fns)(ctx, next);
+      expect(fns.createAccessToken).toHaveBeenCalled();
+      expect(ctx.body).toBe(token);
+      expect(ctx.redirect).toNotHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+    });
   });
 });
