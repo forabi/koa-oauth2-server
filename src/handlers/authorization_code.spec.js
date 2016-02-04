@@ -24,7 +24,8 @@ describe('Authorization Code Grant Type', () => {
         isClientValid: createSpy().andReturn(true),
         createAuthorizationCode: createSpy().andReturn(uniqueId('code_')),
         isRedirectUriValid: createSpy().andReturn(true),
-        getFallbackRedirectUri: createSpy(),
+        getFallbackRedirectUri: createSpy().andReturn(uniqueId('http://forabi.net/fallback')),
+        isRequestedScopeValid: createSpy().andReturn(true),
       };
       this.next = createSpy();
     });
@@ -65,7 +66,12 @@ describe('Authorization Code Grant Type', () => {
         const { client_id } = ctx.request.body;
         expect(fns.isClientValid).toHaveBeenCalledWith({ client_id });
       });
-      it('should call scope validation function');
+      it('should call scope validation function', function () {
+        const { ctx, fns } = this;
+        const { client_id, scope } = ctx.request.body;
+        expect(fns.isRequestedScopeValid)
+          .toHaveBeenCalledWith({ client_id, scope });
+      });
       it('should call authorization code generation function with scope, state, ' +
       'non-fallback redirect_uri so that they could be saved', function () {
         const { ctx, fns } = this;
@@ -139,6 +145,24 @@ describe('Authorization Code Grant Type', () => {
       });
       await handleAuthorizationRequest(fns)(ctx, next);
       expect(next).toNotHaveBeenCalled();
+      expect(ctx.redirect).toHaveBeenCalled();
+    });
+
+    it('should redirect with error if scope is invalid', async function() {
+      const { ctx, next, fns } = this;
+      const { state, redirect_uri } = ctx.request.body;
+      fns.isRequestedScopeValid = createSpy().andReturn(false);
+      ctx.redirect = createSpy().andCall(url => {
+        expect(url.startsWith(redirect_uri));
+        const parsedUrl = parseUrl(url);
+        const parsedQuery = parseQuery(parsedUrl.query);
+        expect(parsedQuery.error).toExist();
+        expect(parsedQuery.error_description).toMatch(/scope/i);
+        expect(parsedQuery.state).toBe(state);
+      });
+      await handleAuthorizationRequest(fns)(ctx, next);
+      expect(next).toNotHaveBeenCalled();
+      expect(fns.createAuthorizationCode).toNotHaveBeenCalled();
       expect(ctx.redirect).toHaveBeenCalled();
     });
 

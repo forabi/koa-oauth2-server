@@ -5,6 +5,7 @@ import { stringify } from 'querystring';
 export function handleAuthorizationRequest({
   isClientValid, createAuthorizationCode,
   isRedirectUriValid, getFallbackRedirectUri,
+  isRequestedScopeValid,
 }) {
   return async (ctx, next) => {
     const {
@@ -28,6 +29,9 @@ export function handleAuthorizationRequest({
     }
     let query;
     try {
+      if (await isRequestedScopeValid({ client_id, scope }) === false) {
+        throw new InvalidInputError('scope');
+      }
       const code = await createAuthorizationCode({
         client_id, scope, state, redirect_uri,
       });
@@ -66,10 +70,9 @@ export function handleTokenRequest({
     if (await isClientSecretValid({ client_id, client_secret }) === false) {
       throw new InvalidInputError('client_secret');
     }
-    let scope = null;
     const validCode = await findAuthorizationCode({ client_id, code });
     if (!validCode) throw new InvalidInputError('code');
-    scope = validCode.scope;
+    const scope = validCode.scope || null;
     if (await isRedirectUriRequired({ client_id, code })) {
       if (!redirect_uri || !String(redirect_uri).length
         || await isRedirectUriValid({ client_id, code }) === false) {
