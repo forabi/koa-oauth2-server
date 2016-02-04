@@ -5,7 +5,7 @@ import { handleAuthorizationRequest, handleTokenRequest } from './authorization_
 import uniqueId from 'lodash.uniqueid';
 
 describe('Authorization Code Grant Type', () => {
-  describe('Authorization request handler', () => {
+  describe('Authorization Request handler', () => {
     it('requires "response_type" of "code", otherwise calls next', async () => {
       const ctx = {
         request: {
@@ -260,6 +260,8 @@ describe('Authorization Code Grant Type', () => {
       await handleAuthorizationRequest(fns)(ctx);
       expect(redirect).toHaveBeenCalled();
     });
+    
+    it('should pass non-fallback redirect_uri to code generation function so that it could be saved');
 
     it('query string must include exact "state" if passed', async () => {
       const redirect_uri = uniqueId('http://forabi.net/post/');
@@ -334,25 +336,105 @@ describe('Authorization Code Grant Type', () => {
     });
   });
   describe('Token Request hanlder', () => {
-    it('requires "grant_type" of "authorization_code", otherwise calls next', async () => {
-      const ctx = {
+    beforeEach(function() {
+      this.ctx = {
         request: {
           body: {
-            grant_type: null,
+            grant_type: 'authorization_code',
+            client_id: uniqueId('client_'),
+            client_secret: uniqueId('client_secret_'),
+            code: uniqueId('code_'),
+            ttl: 3600,
+            scope: 'user:notifications',
+            state: uniqueId('state_'),
+            redirect_uri: uniqueId('http://forabi.net/post/'),
           },
         },
       };
-      const fns = {
-
+      this.fns = {
+        isAuthorizationCodeValid: createSpy(),
+        isClientSecretValid: createSpy(),
+        createAccessToken: createSpy(),
+        isRedirectUriRequired: createSpy(),
+        isRedirectUriValid: createSpy(),
       };
-      const next = createSpy();
+      this.next = createSpy();
+    });
+    
+    it('requires "grant_type" of "authorization_code", otherwise calls next', async function() {
+      const { fns, ctx, next } = this;
+      delete ctx.request.body.grant_type;
       await handleTokenRequest(fns)(ctx, next);
       expect(next).toHaveBeenCalled();
-    }
-    );
-    it('requires "client_id", otherwise rejects');
-    it('requires "redirect_uri" if it was included in the authorization request');
-    it('requires "client_secret", otherwise rejects');
+      for (const fn of Object.keys(fns)) {
+        expect(fns[fn]).toNotHaveBeenCalled();
+      }
+    });
+
+    it('requires "client_id", otherwise rejects', async function() {
+      const { fns, ctx, next } = this;
+      delete ctx.request.body.client_id;
+      const errorHandler = createSpy().andCall(e => {
+        expect(e.message)
+        .toMatch(/client_id/)
+        .toMatch(/missing|invalid input/i);
+      });
+      await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
+      expect(errorHandler).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+      for (const fn of Object.keys(fns)) {
+        expect(fns[fn]).toNotHaveBeenCalled();
+      }
+    });
+
+    it('requires "redirect_uri" if it was included in the authorization request', async function() {
+      const { fns, ctx, next } = this;
+      delete ctx.request.body.redirect_uri;
+      fns.isRedirectUriRequired = createSpy().andReturn(true);
+      fns.isRedirectUriValid = createSpy().andReturn(false);
+      const errorHandler = createSpy().andCall(e => {
+        expect(e.message)
+        .toMatch(/redirect_uri/)
+        .toMatch(/missing|invalid input/i);
+      });
+      await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
+      expect(errorHandler).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+      expect(fns.isRedirectUriRequired).toHaveBeenCalled();
+      expect(fns.isRedirectUriValid).toNotHaveBeenCalled();
+    });
+    
+    it('shoukd call redirect URI validation function if required', async function() {
+      const { fns, ctx, next } = this;
+      fns.isRedirectUriRequired = createSpy().andReturn(true);
+      fns.isRedirectUriValid = createSpy().andReturn(false);
+      const errorHandler = createSpy().andCall(e => {
+        expect(e.message)
+        .toMatch(/redirect_uri/)
+        .toMatch(/missing|invalid input/i);
+      });
+      await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
+      expect(errorHandler).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+      expect(fns.isRedirectUriRequired).toHaveBeenCalled();
+      expect(fns.isRedirectUriValid).toHaveBeenCalled();
+    });
+
+    it('requires "client_secret", otherwise rejects', async function () {
+      const { fns, ctx, next } = this;
+      delete ctx.request.body.client_secret;
+      const errorHandler = createSpy().andCall(e => {
+        expect(e.message)
+        .toMatch(/client_secret/)
+        .toMatch(/missing|invalid input/i);
+      });
+      await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
+      expect(errorHandler).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+      for (const fn of Object.keys(fns)) {
+        expect(fns[fn]).toNotHaveBeenCalled();
+      }
+    });
     it('requires "code", otherwise rejects');
     it('should call client credentials validation function');
     it('should call code validation function only after client is validated');
