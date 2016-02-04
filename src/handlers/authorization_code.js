@@ -67,15 +67,9 @@ export function handleTokenRequest({
       throw new InvalidInputError('client_secret');
     }
     let scope = null;
-    let ttl = null;
-    try {
-      const authCode = await findAuthorizationCode({ client_id, code });
-      if (!authCode) throw new Error();
-      scope = authCode.scope;
-      ttl = authCode.ttl;
-    } catch (e) {
-      throw new InvalidInputError('code');
-    }
+    const validCode = await findAuthorizationCode({ client_id, code });
+    if (!validCode) throw new InvalidInputError('code');
+    scope = validCode.scope;
     if (await isRedirectUriRequired({ client_id, code })) {
       if (!redirect_uri || !String(redirect_uri).length
         || await isRedirectUriValid({ client_id, code }) === false) {
@@ -83,7 +77,7 @@ export function handleTokenRequest({
       }
     }
     const token = await createAccessToken({
-      client_id, scope, ttl,
+      client_id, scope,
       createRefreshToken: true,
     });
     ctx.body = token;
