@@ -7,224 +7,122 @@ import uniqueId from 'lodash.uniqueid';
 
 describe('Authorization Code Grant Type', () => {
   describe('Authorization Request handler', () => {
-    it('requires "response_type" of "code", otherwise calls next', async () => {
-      const ctx = {
-        request: {
-          body: {
-            response_type: null,
-          },
-        },
-      };
-      const fns = { };
-      const next = createSpy();
-      await handleAuthorizationRequest(fns)(ctx, next);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it('requires "client_id", otherwise rejects', async () => {
-      const fns = {
-        isClientValid() {
-          return true;
-        },
-      };
-      const ctx = {
+    beforeEach(function setUpTest() {
+      this.ctx = {
         request: {
           body: {
             response_type: 'code',
-            client_id: '',
+            client_id: uniqueId('client_'),
+            redirect_uri: uniqueId('http://forabi.net/post/'),
+            scope: uniqueId('scope_'),
+            state: uniqueId('state_'),
           },
         },
+        redirect: createSpy(),
       };
+      this.fns = {
+        isClientValid: createSpy().andReturn(true),
+        createAuthorizationCode: createSpy().andReturn(uniqueId('code_')),
+        isRedirectUriValid: createSpy().andReturn(true),
+        getFallbackRedirectUri: createSpy(),
+      };
+      this.next = createSpy();
+    });
+
+    it('requires "response_type" of "code", otherwise calls next', async function() {
+      const { ctx, next, fns } = this;
+      delete ctx.request.body.response_type;
+      await handleAuthorizationRequest(fns)(ctx, next);
+      for (const fn of Object.keys(fns)) {
+        expect(fns[fn]).toNotHaveBeenCalled();
+      }
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('requires "client_id", otherwise rejects', async function() {
+      const { ctx, next, fns } = this;
+      delete ctx.request.body.client_id;
       const errorHandler = createSpy().andCall(e => {
         expect(e.message).toMatch(/invalid input/i);
       });
       await handleAuthorizationRequest(fns)(ctx).catch(errorHandler);
       expect(errorHandler).toHaveBeenCalled();
+      for (const fn of Object.keys(fns)) {
+        expect(fns[fn]).toNotHaveBeenCalled();
+      }
+      expect(next).toNotHaveBeenCalled();
     });
 
-    it('should call client validation function', async () => {
-      const isClientValid = createSpy();
-      const client_id = uniqueId('client_');
-      const fns = {
-        isClientValid,
-        getRedirectUri() {
-          return uniqueId('http://forabi.net/post/');
-        },
-        createAuthorizationCode() {
-          return uniqueId('auth_code_');
-        },
-      };
-      const ctx = {
-        request: {
-          body: {
-            response_type: 'code',
-            client_id,
-          },
-        },
-        redirect() {
-          return;
-        },
-      };
+    describe('On valid requests', () => {
+      beforeEach(async function () {
+        const { ctx, next, fns } = this;
+        await handleAuthorizationRequest(fns)(ctx);
+        expect(next).toNotHaveBeenCalled();
+        expect(ctx.redirect).toHaveBeenCalled();
+      });
+      it('should call client validation function', function () {
+        const { ctx, fns } = this;
+        const { client_id } = ctx.request.body;
+        expect(fns.isClientValid).toHaveBeenCalledWith({ client_id });
+      });
+      it('should call scope validation function');
+      it('should call authorization code generation function');
+      it('should pass scope, state, non-fallback redirect_uri to code generation' +
+    'function so that they could be saved');
+      it('should redirect to passed URI if it is valid', function () {
+        const { ctx, fns } = this;
+        const { client_id, redirect_uri } = ctx.request.body;
+        expect(fns.isRedirectUriValid)
+          .toHaveBeenCalledWith({ client_id, redirect_uri });
+        expect(fns.getFallbackRedirectUri).toNotHaveBeenCalled();
+        expect(ctx.redirect).toHaveBeenCalled();
+      });
+      it('query string must include authorization code as "code"');
+      it('query string must include exact "state" if passed');
+      it('should redirect on code generation failure with "error", ' +
+    '"error_description" and exact "state" in query string');
+    });
+
+    it('should redirect to fallback redirect URI if "redirect_uri" ' +
+    'is missing', async function() {
+      const { ctx, next, fns } = this;
+      const fallback_redirect_uri = uniqueId('http://forabi.net/fallback/');
+      fns.getFallbackRedirectUri = createSpy().andReturn(fallback_redirect_uri);
+      ctx.redirect = createSpy().andCall(url => {
+        expect(url.startsWith(fallback_redirect_uri));
+      });
+      delete ctx.request.body.redirect_uri;
       await handleAuthorizationRequest(fns)(ctx);
-      expect(isClientValid).toHaveBeenCalledWith({ client_id });
+      expect(ctx.redirect).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
     });
 
-    it('should not redirect if client is invalid', async () => {
-      const isClientValid = createSpy().andCall(() => false);
-      const createAuthorizationCode = createSpy();
-      const redirect = createSpy();
-      const client_id = uniqueId('client_');
-      const fns = {
-        isClientValid,
-        getRedirectUri() {
-          return uniqueId('http://forabi.net/post/');
-        },
-        createAuthorizationCode,
-      };
-      const ctx = {
-        request: {
-          body: {
-            response_type: 'code',
-            client_id,
-          },
-        },
-        redirect,
-      };
+    it('should not redirect if client is invalid', async function () {
+      const { ctx, next, fns } = this;
+      fns.isClientValid = createSpy().andCall(() => false);
+      const { client_id } = ctx.request.body;
       const errorHandler = createSpy().andCall(error => {
         expect(error.message).toMatch(/invalid.+client/i);
-        expect(isClientValid).toHaveBeenCalledWith({ client_id });
-        expect(createAuthorizationCode).toNotHaveBeenCalled();
-        expect(redirect).toNotHaveBeenCalled();
       });
       await handleAuthorizationRequest(fns)(ctx).catch(errorHandler);
+      expect(fns.isClientValid).toHaveBeenCalledWith({ client_id });
+      expect(next).toNotHaveBeenCalled();
+      expect(ctx.redirect).toNotHaveBeenCalled();
       expect(errorHandler).toHaveBeenCalled();
     });
 
-    it('should call authorization code generation function', async () => {
-      const createAuthorizationCode = createSpy();
-      const client_id = uniqueId('client_');
-      const fns = {
-        isClientValid() {
-          return true;
-        },
-        getRedirectUri() {
-          return uniqueId('http://forabi.net/post/');
-        },
-        createAuthorizationCode,
-      };
-      const ctx = {
-        request: {
-          body: {
-            response_type: 'code',
-            client_id,
-          },
-        },
-        redirect() {
-          return;
-        },
-      };
-      await handleAuthorizationRequest(fns)(ctx);
-      expect(createAuthorizationCode).toHaveBeenCalled();
-    });
-
-    it('should redirect to passed URI if it is valid', async () => {
-      const getRedirectUri = createSpy();
-      const isRedirectUriValid = createSpy().andCall(() => true);
-      const client_id = uniqueId('client_');
-      const redirect_uri = uniqueId('http://forabi.net/post/');
-      const redirect = createSpy().andCall(url => {
-        expect(url.startsWith(redirect_uri));
-      });
-      const fns = {
-        isClientValid() {
-          return true;
-        },
-        createAuthorizationCode() {
-          return uniqueId('auth_code_');
-        },
-        getRedirectUri,
-        isRedirectUriValid,
-      };
-      const ctx = {
-        request: {
-          body: {
-            response_type: 'code',
-            client_id,
-            redirect_uri,
-          },
-        },
-        redirect,
-      };
-      await handleAuthorizationRequest(fns)(ctx);
-      expect(getRedirectUri).toNotHaveBeenCalled();
-      expect(isRedirectUriValid).toHaveBeenCalledWith({ client_id, redirect_uri });
-      expect(redirect).toHaveBeenCalled();
-    });
-
-    it('should not redirect if redirect URI is invalid', async () => {
-      const getRedirectUri = createSpy();
-      const isRedirectUriValid = createSpy().andCall(() => false);
-      const client_id = uniqueId('client_');
-      const redirect_uri = uniqueId('http://forabi.net/post/');
-      const redirect = createSpy().andCall(url => {
-        expect(url.startsWith(redirect_uri));
-      });
-      const fns = {
-        isClientValid() {
-          return true;
-        },
-        createAuthorizationCode() {
-          return uniqueId('auth_code_');
-        },
-        getRedirectUri,
-        isRedirectUriValid,
-      };
-      const ctx = {
-        request: {
-          body: {
-            response_type: 'code',
-            client_id,
-            redirect_uri,
-          },
-        },
-        redirect,
-      };
+    it('should not redirect if redirect URI is invalid', async function() {
+      const { ctx, next, fns } = this;
+      fns.isRedirectUriValid = createSpy().andCall(() => false);
       const errorHandler = createSpy().andCall(error => {
         expect(error.message).toMatch(/invalid input/i);
-        expect(getRedirectUri).toNotHaveBeenCalled();
-        expect(isRedirectUriValid).toHaveBeenCalledWith({ client_id, redirect_uri });
-        expect(redirect).toNotHaveBeenCalled();
       });
       await handleAuthorizationRequest(fns)(ctx).catch(errorHandler);
       expect(errorHandler).toHaveBeenCalled();
-    });
-
-    it('should redirect to fallback redirect URI if "redirect_uri" is missing', async () => {
-      const redirect_uri = uniqueId('http://forabi.net/post/');
-      const getRedirectUri = createSpy().andCall(() => redirect_uri);
-      const redirect = createSpy();
-      const client_id = uniqueId('client_');
-      const fns = {
-        isClientValid() {
-          return true;
-        },
-        createAuthorizationCode() {
-          return uniqueId('auth_code_');
-        },
-        getRedirectUri,
-      };
-      const ctx = {
-        request: {
-          body: {
-            response_type: 'code',
-            client_id,
-          },
-        },
-        redirect,
-      };
-      await handleAuthorizationRequest(fns)(ctx);
-      expect(getRedirectUri).toHaveBeenCalledWith({ client_id });
-      expect(redirect).toHaveBeenCalled();
+      expect(next).toNotHaveBeenCalled();
+      expect(fns.getFallbackRedirectUri).toNotHaveBeenCalled();
+      expect(fns.isRedirectUriValid).toHaveBeenCalled();
+      expect(ctx.redirect).toNotHaveBeenCalled();
     });
 
     it('query string must include authorization code as "code"', async () => {
@@ -261,9 +159,6 @@ describe('Authorization Code Grant Type', () => {
       await handleAuthorizationRequest(fns)(ctx);
       expect(redirect).toHaveBeenCalled();
     });
-
-    it('should pass non-fallback redirect_uri to code generation function' +
-    'so that it could be saved');
 
     it('query string must include exact "state" if passed', async () => {
       const redirect_uri = uniqueId('http://forabi.net/post/');
@@ -337,6 +232,7 @@ describe('Authorization Code Grant Type', () => {
       expect(redirect).toHaveBeenCalled();
     });
   });
+
   describe('Token Request hanlder', () => {
     beforeEach(function setUpTests() {
       this.ctx = {
@@ -347,14 +243,14 @@ describe('Authorization Code Grant Type', () => {
             client_secret: uniqueId('client_secret_'),
             code: uniqueId('code_'),
             ttl: 3600,
-            scope: 'user:notifications',
+            scope: uniqueId('scope_'),
             state: uniqueId('state_'),
             redirect_uri: uniqueId('http://forabi.net/post/'),
           },
         },
       };
       this.fns = {
-        isAuthorizationCodeValid: createSpy(),
+        findAthorizationCode: createSpy(),
         isClientSecretValid: createSpy(),
         createAccessToken: createSpy(),
         isRedirectUriRequired: createSpy(),
