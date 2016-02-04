@@ -1,3 +1,4 @@
+/* eslint-disable func-names */
 import expect, { createSpy } from 'expect';
 import { parse as parseUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
@@ -260,8 +261,9 @@ describe('Authorization Code Grant Type', () => {
       await handleAuthorizationRequest(fns)(ctx);
       expect(redirect).toHaveBeenCalled();
     });
-    
-    it('should pass non-fallback redirect_uri to code generation function so that it could be saved');
+
+    it('should pass non-fallback redirect_uri to code generation function' +
+    'so that it could be saved');
 
     it('query string must include exact "state" if passed', async () => {
       const redirect_uri = uniqueId('http://forabi.net/post/');
@@ -336,7 +338,7 @@ describe('Authorization Code Grant Type', () => {
     });
   });
   describe('Token Request hanlder', () => {
-    beforeEach(function() {
+    beforeEach(function setUpTests() {
       this.ctx = {
         request: {
           body: {
@@ -360,7 +362,7 @@ describe('Authorization Code Grant Type', () => {
       };
       this.next = createSpy();
     });
-    
+
     it('requires "grant_type" of "authorization_code", otherwise calls next', async function() {
       const { fns, ctx, next } = this;
       delete ctx.request.body.grant_type;
@@ -403,7 +405,7 @@ describe('Authorization Code Grant Type', () => {
       expect(fns.isRedirectUriRequired).toHaveBeenCalled();
       expect(fns.isRedirectUriValid).toNotHaveBeenCalled();
     });
-    
+
     it('shoukd call redirect URI validation function if required', async function() {
       const { fns, ctx, next } = this;
       fns.isRedirectUriRequired = createSpy().andReturn(true);

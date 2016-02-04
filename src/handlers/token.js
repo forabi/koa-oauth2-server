@@ -1,9 +1,8 @@
-import { MODEL } from '../constants';
 import { toOAuthError } from '../errors';
 import { stringify } from 'querystring';
 
-export async function handleTokenRequest({ createAccessToken }) {
-  return (ctx, next) => {
+export function handleTokenRequest({ createAccessToken }) {
+  return async (ctx, next) => {
     const {
       response_type, client_id, redirect_uri,
       scope, ttl, state,
@@ -23,5 +22,5 @@ export async function handleTokenRequest({ createAccessToken }) {
     } finally {
       ctx.redirect(`${redirect_uri}?${stringify(query)}`);
     }
-  }
+  };
 }

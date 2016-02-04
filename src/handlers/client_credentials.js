@@ -1,7 +1,7 @@
 import { InvalidInputError } from '../errors';
 
-export async function handleTokenRequest({ createAccessToken, isClientSecretValid }) {
-  return (ctx, next) => {
+export function handleTokenRequest({ createAccessToken, isClientSecretValid }) {
+  return async (ctx, next) => {
     const {
       grant_type, client_id, client_secret,
       scope, ttl, state,
@@ -17,5 +17,5 @@ export async function handleTokenRequest({ createAccessToken, isClientSecretVali
       createRefreshToken: true,
     });
     ctx.body = token;
-  }
+  };
 }

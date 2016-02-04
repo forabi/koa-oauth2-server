@@ -9,7 +9,7 @@ export function handleAuthorizationRequest({
   return async (ctx, next) => {
     const {
       response_type, client_id, scope, state,
-      redirect_uri
+      redirect_uri,
     } = ctx.request.body;
     if (response_type !== 'code') {
       return next();
@@ -70,8 +70,9 @@ export function handleTokenRequest({
       throw new InvalidInputError('code');
     }
     if (await isRedirectUriRequired({ client_id, code })) {
-      if (!redirect_uri || !String(redirect_uri).length || await isRedirectUriValid({ client_id, code }) === false) {
-          throw new InvalidInputError('redirect_uri');
+      if (!redirect_uri || !String(redirect_uri).length
+        || await isRedirectUriValid({ client_id, code }) === false) {
+        throw new InvalidInputError('redirect_uri');
       }
     }
     const token = await createAccessToken({

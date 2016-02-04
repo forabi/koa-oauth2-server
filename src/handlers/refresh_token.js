@@ -1,8 +1,7 @@
-import { MODEL } from '../constants';
 import { MissingInputError } from '../errors';
 
-export async function handleTokenRequest({ createAccessToken }) {
-  return (ctx, next) => {
+export function handleTokenRequest({ createAccessToken }) {
+  return async (ctx, next) => {
     const {
       grant_type, client_id,
       ttl, scope, state,
@@ -22,5 +21,5 @@ export async function handleTokenRequest({ createAccessToken }) {
       createRefreshToken: true,
     });
     ctx.body = token;
-  }
+  };
 }

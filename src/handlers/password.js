@@ -1,7 +1,7 @@
 import { MissingInputError } from '../errors';
 
 export async function handleTokenRequest({ createAccessToken }) {
-  return (ctx, next) => {
+  return async (ctx, next) => {
     const {
       grant_type, username, password, scope,
       client_id, state, ttl,
@@ -20,5 +20,5 @@ export async function handleTokenRequest({ createAccessToken }) {
       createRefreshToken: true,
     });
     ctx.body = token;
-  }
+  };
 }
