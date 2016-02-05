@@ -4,7 +4,7 @@ export class GenericError extends Error {
   name = 'invalid_request';
   statusCode = 400;
   type = OAUTH2_ERROR;
-  toJSON({ state }) {
+  toJSON({ state } = { }) {
     return {
       error: this.name,
       error_description: this.message,
