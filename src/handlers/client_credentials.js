@@ -12,6 +12,12 @@ export function handleTokenRequest({
     if (grant_type !== 'client_credentials') {
       return next();
     }
+    if (!client_id || !String(client_id).length) {
+      throw new InvalidInputError('client_id');
+    }
+    if (!client_secret || !String(client_secret).length) {
+      throw new InvalidInputError('client_secret');
+    }
     if (await isClientSecretValid({ client_id, client_secret }) === false) {
       throw new InvalidInputError('client_secret');
     }

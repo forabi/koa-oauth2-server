@@ -1,6 +1,7 @@
 /* eslint-disable func-names */
 import expect, { createSpy } from 'expect';
-import { handleTokenRequest } from './client_credentials';
+import { handleTokenRequest } from '../handlers/client_credentials';
+import { testRequiredParam } from './_test_helper';
 import uniqueId from 'lodash.uniqueid';
 
 describe('Client Credentials Grant Type', () => {
@@ -33,8 +34,14 @@ describe('Client Credentials Grant Type', () => {
         expect(fns[fn]).toNotHaveBeenCalled();
       }
     });
-    it('requires "client_id", otherwise rejects');
-    it('requires "client_secret", otherwise rejects');
+
+    describe('Required Parameters', () => {
+      for (const param of ['client_id', 'client_secret']) {
+        it(`requires "${param}", otherwise rejects`,
+          testRequiredParam(handleTokenRequest, param));
+      }
+    });
+
     it('does not require scope', async function() {
       const { ctx, next, fns } = this;
       delete ctx.request.body.scope;

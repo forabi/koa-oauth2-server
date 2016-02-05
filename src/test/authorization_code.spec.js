@@ -1,8 +1,9 @@
 /* eslint-disable func-names */
 import expect, { createSpy } from 'expect';
+import { testRequiredParam } from './_test_helper';
 import { parse as parseUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
-import { handleAuthorizationRequest, handleTokenRequest } from './authorization_code';
+import { handleAuthorizationRequest, handleTokenRequest } from '../handlers/authorization_code';
 import uniqueId from 'lodash.uniqueid';
 
 describe('Authorization Code Grant Type', () => {
@@ -258,25 +259,9 @@ describe('Authorization Code Grant Type', () => {
     });
 
     describe('Required Parameters', () => {
-      function testRequiredParam(param) {
-        return async function() {
-          const { fns, ctx, next } = this;
-          delete ctx.request.body[param];
-          const errorHandler = createSpy().andCall(e => {
-            expect(e.message)
-            .toMatch(new RegExp(`${param}`))
-            .toMatch(/missing|invalid input/i);
-          });
-          await handleTokenRequest(fns)(ctx, next).catch(errorHandler);
-          expect(errorHandler).toHaveBeenCalled();
-          expect(next).toNotHaveBeenCalled();
-          for (const fn of Object.keys(fns)) {
-            expect(fns[fn]).toNotHaveBeenCalled();
-          }
-        };
-      }
       for (const param of ['client_id', 'client_secret', 'code']) {
-        it(`requires "${param}", otherwise rejects`, testRequiredParam(param));
+        it(`requires "${param}", otherwise rejects`,
+          testRequiredParam(handleTokenRequest, param));
       }
     });
 

@@ -7,11 +7,11 @@
     "dist"
   ],
   "scripts": {
-    "test": "mocha src/**/*.spec.js && npm run lint",
+    "test": "mocha src/test/*.spec.js && npm run lint",
     "lint": "eslint src",
-    "lint-fix": "eslint src --ignore src/test --fix",
-    "coverage": "babel-node ./node_modules/.bin/babel-istanbul cover _mocha src/**/*.spec.js",
-    "prepublish": "rm -rf dist && babel src --ignore *.spec.js --ignore src/test/*.js -d dist"
+    "lint-fix": "eslint src --fix",
+    "coverage": "rm -rf coverage && babel-node ./node_modules/.bin/babel-istanbul cover _mocha src/test/*.spec.js",
+    "prepublish": "rm -rf dist && babel src --ignore src/test/*.js -d dist"
   },
   "repository": {
     "type": "git",
