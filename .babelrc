@@ -1,7 +1,10 @@
 {
-  "presets": ["es2015-node5", "stage-3", "stage-2"],
+  "presets": ["es2015-node5"],
   "plugins": [
     "transform-class-properties",
+    "transform-async-to-generator",
+    "transform-object-rest-spread",
+    "transform-runtime"
   ],
   "sourceMaps": "both"
 }
