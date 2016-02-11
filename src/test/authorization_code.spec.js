@@ -258,10 +258,11 @@ describe('Authorization Code Grant Type', () => {
       expect(fns.isRedirectUriValid).toHaveBeenCalled();
     });
 
-    describe('Required Parameters', () => {
+    describe('Required Parameters', async () => {
       for (const param of ['client_id', 'client_secret', 'code']) {
         it(`requires "${param}", otherwise rejects`,
-          testRequiredParam(handleTokenRequest, param));
+          testRequiredParam(param, handleTokenRequest)
+        );
       }
     });
 

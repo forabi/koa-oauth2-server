@@ -39,7 +39,7 @@ describe('Client Credentials Grant Type', () => {
     describe('Required Parameters', () => {
       for (const param of ['client_id', 'client_secret']) {
         it(`requires "${param}", otherwise rejects`,
-          testRequiredParam(handleTokenRequest, param));
+          testRequiredParam(param, handleTokenRequest));
       }
     });
 
